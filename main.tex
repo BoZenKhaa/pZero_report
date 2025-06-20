@@ -12,94 +12,100 @@
 \begin{document}
 
 \section{Introduction}
-
-
-% Option 1:
-
-% In this work, we consider the problem of forming a compact POMDP abstraction in an unknown POMDP environment. 
-% In our setup, an agent is given a number of small simulated environments that may or may not represent the characteristics of the true environment. 
-% In these environments, the agent has access to the underlying POMDP model, which can be used as a training target. 
-% In the new environment, the goal of the agent is to explore the environment to learn an abstraction that can be used to solve the POMDP problem. 
-
 % Option 2:
 
 % RL in POMDPs is hard
-Applying reinforcement learning (RL) algorithms to partially observable Markov decision processes (POMDPs) is difficult due to poor sample efficiency. This is already in issue in fully observable MDPs, but in POMDPs the problem is exacerbated by uncertainty about the current state and stochastic observations, which result in large (continous) branching factors. 
+Applying deep reinforcement learning (RL) algorithms to partially observable Markov decision processes (POMDPs) is difficult. 
+One reason is poor sample efficiency, which is  already in issue in fully observable MDPs, but is exacerbated by partial observability. 
+Second, principal reason, is state aliasing; where in POMDPs the same observations correspond to different environmental states.  
 
 % Model-based RL helps
-Model-based RL algorithms, such as MuZero~\cite{schrittwieserMasteringAtariGo2020}, are generally more sample efficient by constructing a model of the environment. This model is then used to supplement the agent's experience in the environment to plan actions. However, POMDPs pose a difficult problem for RL algorithms, as discovering the right model is much more challenging task in POMDPs than it is in MDPs.
-
-% MuZero and SLAMuZero
-One option is to provide an algorithm with prior understanding of how the model should look like.
-In this work, we consider the SLAMuZero~\cite{fangSLAMuZeroPlanLearn2024} algorithm intended for the SLAM problem in robotics. 
-In training, the SLAMuZero agent is provided with maps of the training environments, which provide an engineered abstraction for the agent to use to learn a model of the environment.
-When the agent is deployed in a new environment, it uses the learned model to create a new map, based on the prior understanding of how the environmental model should look like.
-% SLAMuZero is a variant of the MuZero algortihm that is able to reconstruct a map of an unknown environment while navigating through it.
-% In SLAMuZero, the agent is provided with a number of training environments and their maps, which the agent uses to train a model that can create a map of a new environment.
+Model-based RL algorithms, such as MuZero~\cite{schrittwieserMasteringAtariGo2020}, are generally more sample efficient by constructing a model of the environment. 
+This model is then used to supplement the agent's experience in the environment to plan actions. 
+However, POMDPs pose a difficult problem for RL algorithms, as discovering the right model is much more challenging task in POMDPs than it is in MDPs. 
 
 % Limitations of MuZero
 Original MuZero algorithm is a model-based reinforcement learning algorithm that learns a model of the environment and uses it to plan and learn policies. 
 It excels in deterministic, fully observable domains.
 It also performs well with small amount of stochasticity, but the Stochastic MuZero~\cite{antonoglouPlanningStochasticEnvironments2021} algorithm obtains slightly better results~\cite{niuLightZeroUnifiedBenchmark2023}. 
 This is also true in partially observable domains.
-However, in general, MuZero, nor Stochastic MuZero are able to perform well in partially observable domains, as they lack mechanisms to capture the state uncertainty, and as a result, rely on mapping observation histories to latent states.
+However, in general, MuZero, nor Stochastic MuZero are able to perform well in partially observable domains, as they lack mechanisms to propagate information collected from previous observations to the future decisions in the same episode. 
 
+% MuZero and SLAMuZero
+One option is to provide an algorithm with prior understanding of how the model should look like.
+In this work, we are inspired by the SLAMuZero~\cite{fangSLAMuZeroPlanLearn2024} algorithm intended for the SLAM problem in robotics. 
+In training, the SLAMuZero agent is provided with maps of the training environments, which provide an engineered abstraction for the agent to use to learn a model of the environment.
+When the agent is deployed in a new environment, it uses the learned model to create a new map, based on the prior understanding of how the environmental model should look like.
+However, the SLAMuZero algorithm is also missing a mechanism for keeping track of information collected in previous timesteps, which is essential for effective planning in partially observable domains.
+% SLAMuZero is a variant of the MuZero algortihm that is able to reconstruct a map of an unknown environment while navigating through it.
+% In SLAMuZero, the agent is provided with a number of training environments and their maps, which the agent uses to train a model that can create a map of a new environment.
 
 % Hypothesis
-MuZero algorithm works by learning a model of the environment in the form of the latent state space, which is then used to plan future actions. 
-However, in partially observable domains MDPs, observations are noisy and do not provide a lot of information about the environment. 
-As a result, the latent space may take a long time to learn a representation of the environment that is actually useful for planning, even though the actual environment model migh be simple.  
-However, in some domains, we have existing, readily available abstractions of the environment that we know to be useful for planning, such as maps in gridworld mazes. These abstractions, when used as a training target for the reconstruction from the latent state space, will force the agent to focus on learning the latent state space that encodes this information, and as a result, will converge faster. 
+We hypothesize that for efficiently extending the MuZero algorithms to partially observable domains, two things are needed. 
+First, information collected in previous timesteps needs to propagate to the future decisions in the same episode. This can be achieved by using the previous latent space as additional input to the the representation network, which is the component responsibnle for encoding observations into the latent space.
+However, this is not enough, as training such representation network is sample inefficient; with partial observations,  latent space may take a long time to learn a representation of the environment that is actually useful for planning, even though the actual environment model migh be simple.  
+This can be helped by guiding the construction of the latent space in some way. 
+We do this by having the model reconstruct a known, useful abstraction of the environment, such as map, from the latent states. 
+This forces the latent space to encode information critical for planning in the environment, improving sample efficiency. 
 
-% Hypothesis
-% In this work, we focus on partially observable domains with observations that carry only a small amount of information about the state of the environment.
-% We hypothesise that in such domains, the agent needs to build an internal representation of the environment to be able to plan and learn policies effectively.
+In some domains, we have existing, readily available abstractions of the environment that we know to be useful for planning, such as maps in gridworld mazes. 
+These abstractions, when used as a training target for the reconstruction from the latent state space, will force the agent to focus on learning the latent state space that encodes this information, and as a result, will converge faster. 
+While using engineered abstractions goes against the idea of the bitter lesson, it is not necessary to use the abstractions for the whole training process, but only to shape the initial latent space.
 
-% Abstractions
-However, we are interested in abstractions; maps in SLAMuZero are an engineered abstraction of the environment. 
-We train the mapping model in MuZero by training on specific examples, that are possibly much simpler than the actual environment. 
-We hypothesize that this will allow us to shape the type of abstraction agent forms in the testing environment, speeding up the learning process.
+In this work, we propose and investigate a novel architecture that extends MuZero. Our method incorporates an explicit memory mechanism to handle state aliasing and utilizes a map-reconstruction task to guide the latent space towards representations that are immediately useful for planning.
+% We demonstrate that this combination leads to faster convergence and superior performance in challenging, partially observable environments.
 
-% Experiments
-% In our experiment, we will start with a simple grid world environment, starting with a planning problem with no stochasticity and full observability. 
-% Then, we will gradually increase the complexity of the environment, limiting the observations, and adding stochasticity. 
-% We will compare the performance of SLAMuZero with the original MuZero algorithm.
-
-% 
 
 \section{Literature Survey}
 
-\section{Thoughts and Prayers}
-In SLAMuZero, the agent is using the decoder network to reconstruct the map of the environment from any latent state. If trained on a single environment, the decoder can learn the whole of the map, with states holding only the information about the current position of the agent in the environment. However, if trained on multiple environments, the decoder can only encode the common features of all environments, and the states in the latent space need to hold enough compressed information about the map of the current environemnt to be able to reconstruct it.
 
-\section{Experiments}
-In the experiments, we will train both MuZero and SLAMuZero algorithms on a set of training environments. Crucially, there will be a variety of training environments, and evaluation will be performed on a new, previously unseen environment. 
+\section{Hypothesis}
+The main hypothesis for this work is that that we can improve the performance of the MuZero algorithm in partially observable domains by recurrent representation network, and by guiding the construction of the latent space with a prior knowledge of how the environment abstraction looks like.
 
-In the training, the SLAMuZero agent will be provided with the maps of the training environments, which will be used to train the decoder. Some thoughts around this:
-
+We have three main hypothesis:
 \begin{itemize}
-    \item The maps provide MuZero with additional information about the environment, which is not available in the observations. This might be seen as unfair comparison.
-    \begin{itemize}
-        \item We could train the SLAMuZero agent with maps, but not use the maps for policy network. The idea here being that having the maps shapes the latenr space, but the agent still learns the policy from the search on the latent space only, not from the maps.
-    \end{itemize}
-    \item Additionally, when using the maps as policy network input as in the original SLAMuZero, the added decoder network increases the number of parameters in the whole algorithm, which might lead to better performance.
-    \begin{itemize}
-        \item We could keep the number of parameters in the whole algorithm the same, by removing some of the parameters from other networks.
-    \end{itemize}
+    \item \textbf{H1: Recurrent Representation} Making the representation network recurrent will allow the agent to keep track of the information collected in previous timesteps, allowing the MuZero agent to operate in partially observable domains. This is required for the agent to be able to compress observations into beliefs about the environment, which is essential for effective planning in partially observable domains.
+    \item \textbf{H2: Map Abstraction} The "map reconstruction" task will guide the latent space towards representations that are useful for planning, improving sample efficiency.
+    \item \textbf{H3: Bias} The combination of recurrent representation network and map reconstruction task leads to faster convergence and superior performance in in partially observable environments. However, assuming that the map is not an optimal abstraction, the map reconstruction loss biases the latent space. 
 \end{itemize}
 
-In the experiments, we might want to look at sample efficiecy (arguing that building maps improves it, as the maps guide the construction of the latent space positively), and performance improvement (arguing that the maps allow the agent to plan better and come up with better policies).
+Baseline for the experiments is the original MuZero algorithm. For testing H1, we will use the MuZero algorithm with recurrent representation network, the MuZeroRec algorithm. For testing H2, we will use the MuZeroRec algorithm with the map reconstruction task, the MuZeroRecMap algorithm. For testing H3, we will compare the performance of the MuZeroRecMap algorithm with the MuZeroRec algorithm. 
 
-\paragraph{Sample Efficiency of Maps} 
-When interested in sample efficiency, the hypotheis is that "the maps as target for the decoder shape the latent space to include the information needed to build the maps, which we assume is the information needed to plan effectively in the environment". 
+For H1, we want to show improved performance in terms of collected reward of the MuZero and MuZeroRec algorithms. This is because training the recurrent representation need not be more efficient, and will require training on full epiosodes instead of transitions. As such, it would be unfair to compare the sample efficiency to the baseline. 
 
-For this experiment, we want to train both MuZero and SLAMuZero until convergence, and then compare the number of samples needed to reach the same performance level.
+For H2, we want to show that the MuZeroRecMap algorithm is more sample efficient that the MuZeroRec algorithm, so we will be looking at the number of episodes needed to reach the same performance level.
+Note, that it would be difficult to test H2 by applying map reconstruction to original MuZero, as is done by~\cite{fangSLAMuZeroPlanLearn2024}; in evaluation, we would be asking the agent to construct the whole map of the environment from each observation, without the ability to use the previous observations. 
 
-\paragraph{Performance Improvement with Maps}
-When interested in performance improvment, we want to train both MuZero and SLAMuZero on the same number of episodes, and then show tha SLAMuZero performs better than MuZero. The hypothesis here is that "the maps allow efficient planning in the environment, which results in better policies". For this, we will need:
+However, we assume that introducing the map reconstruction loss restrains the MuZeroRec algortihm from finding the best possible abstraction. 
+Therefore to test H3, we will select domain sizes where we can run MuZeroRec and MuZeroRecMap to convergence, and compare their performance.  
+We expect the MuZeroRecMap algorithm to achieve good performance faster, but MuZeroRec should eventually outperform it. 
+By exploring the tradeoff between the performance and the sample efficiency, we can then propose a method that biases the latent states in the initial stages of training, and turns of the map reconstruction loss later.
+
+The map reconstruction network can also be useful to explore the structure of the latent space in novel environments, and to understand how the agent perceives the environment.
+
+The experiment environment will be gridworld mazes for simplicity and because they are standard problem in RL literature and have easily defined maps that can be used as the target for the map reconstruction task.
+
+\section{Experimental setup}
+Our gridworld mazes will be based on the standard minigrid library, part of the OpenAI Gym. However, we will need to modify the mazes to fit our needs. 
+What we need is following:
+
 \begin{itemize}
-    \item low-information observations, so that the agent can benefit from the construction of maps, e.g. two tiles in front of the agent.
+    \item Partial observability: the agent will only see small part of the world.
+    \item Useful mapping: we want the agent to learn the map of the environment, and we want the agent to have the opportunity to improve his performance by using the map.
+    \item Stochasticity: we want the agent to be able to implicityly learn belief over the map. 
 \end{itemize}
+
+These requirements lead us to the folowing design of the training and evaluation environments. The maze contains wall cells, empty cells, single goal cell and an agent. The agent starts in predetermined position in randomly selected maze, with single goal tile positionws in the maze. Reaching the goal tile gives the agent positive reward, every step incurs a small negative reward. To force partial observability, the viewport of the agent is limited to a small area in front of the agent, 3x3 tiles, with the agent centered on one side of the viewport. This means that observations in different states will be aliased. 
+
+To make exploaration of the map useful, wthe goal cell is not a terminal state, instead, we terminate episodes after predetermined number of steps, and we teleport the agent to a random position in the maze after reaching the goal tile. This also introduces stochastic transitions to the model, and the agent needs to deal with the uncertainty of its position in the maze after each teleportation. It can use its aliased observations to orient itself in the maze, and then use the map to plan its route to the goal tile. To reinforce the map use even more strongly, we have a deterministic movement and observatioon model with no stochasticity. 
+
+In training, the agent will be trained on a set of randomly generated mazes, with previously unseen mazes used for evaluation.
+
+\section{MuZeroRec and MuZeroRecMap algorithms}
+
+
+
+
 
 
 \section{Results}
