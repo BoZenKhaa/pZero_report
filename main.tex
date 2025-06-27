@@ -9,8 +9,15 @@
 \usepackage{hyperref} % for hyperlinks
 \usepackage[capitalise, noabbrev]{cleveref} % for \cref, MUST be loaded AFTER hyperref
 
-\begin{document}
+% title and author and date
+\title{MuZero for POMDPs by Recurrent Representation and Biasing Latent Space with Map Reconstruction}
+\author{Jan Mrkos\\ AIC FEE CTU in Prague\\}
+\date{\today}
 
+
+
+\begin{document}
+\maketitle
 \section{Introduction}
 % Option 2:
 
@@ -58,14 +65,49 @@ In this work, we propose and investigate a novel architecture that extends MuZer
 
 \section{Literature Survey}
 
+\subsection{Model-based Reinforcement Learning}
+MuZero family of algorithms\cite{schrittwieserMasteringAtariGo2020,niuLightZeroUnifiedBenchmark2023} remains the state-of-the-art in model-based reinforcement learning. Model-based RL methods are distinguished from model-free RL by planning the effects of next actions with an internal model of the environment. 
+MuZero algorothm learns this model from the agent's interactions with the environment, without assuming any prior knowledge. 
+
+The original MuZero algorithm \cite{schrittwieserMasteringAtariGo2020} consists of three components built from neural networks, that are trained jointly. A representation network, which encodes observations into a latet state space, which forms the model of the environment. 
+A dynamics network is trained to predict the next latent state given a latenr state and an action, allowing the agent to consider effect of different actions and to plan into the future. 
+Finally, the prediction network takes the latent state and provides a distribution over actions that approximates the optimal policy, and the value of the latent state. In execution, the agent receives an observation from the environment and encodes it into a latent state using the representation network. 
+Next, it uses the dynamics and value networks to perform Monte-Carlo tree search (MCTS) on the latent states, where the root of the tree holds the estimate of the best action to take in the next step. 
+In training, the agent uses recorded episodes to update all three networks together. 
+
+MuZero algorithm has been extended and improved in many different ways. 
+For example, the Stochastic MuZero~\cite{antonoglouPlanningStochasticEnvironments2021} adds capability to model stochastic transitions, and demonstrates improved performance over the original MuZero algorithm. 
+Other improvements include EfficientZero\cite{yeMasteringAtariGames2021}, that among other improvements introduces consistency loss between the latent states from the representation network and latent states projected to the future with the dynamics network, which makes the method converge faster. LightZero framework~\cite{niuLightZeroUnifiedBenchmark2023} unifies multiple of these improvements and algorithms into a single package. 
+However, these works focus squarely on fully observable domains, or domains that can be reasonably modelled as such. 
+
+\subsection{Recurrent models and partial observability}
+In MDPs, the agent can reason about the future based only on his known current state, which is what MuZero does. However, partial observable MDPs give agent limited observations about his state, and require the agent to build a distribution over the possible states he might be in, the belief, based on the history of all previous observations. Example of a POMDP problem is Simultaneous Localization and Mapping (SLAM) problem in robotics, assuming limited robot sensors. 
+
+SLAMuZero~\cite{fangSLAMuZeroPlanLearn2024} is a recent attempt at applying MuZero to SLAM. 
+SLAMuZero builds on prior work by~\textcite{chaplotLearningExploreUsing2020}, however, it ignores the additive construction of the map based on the sequence of observations, which is a crucial aspect of that work. 
+Instead, SLAMuZero generates full map estimates from every observation, with no mechanism to enforce consistency and stabiility of the generated map. 
+
+The mechanism of constructing the map from~\textcite{chaplotLearningExploreUsing2020} relies on using the partial map and position estimate from the previous timestep with the new observation to construct a slighly larger map and position estimate in it for use in the next timestep. 
+This mechanism can be replicated in MuZero by using the previous latent state as an additional input to the representation network, using recurrent neural network.
+Such mechanism is crucial for dealing with partial observability, as it allows the agent to compress history of observations into a belief about the environment and agent's position in it. 
+
+Recurrent latent-state model is foundation of the Dreamer algorithms~\cite{hafnerMasteringDiverseDomains2024} using the Recurrent State Space Model (RSSM)~\cite{hafnerLearningLatentDynamics2019}. The RSSM is a recurrent model for encoding POMDP observations into a latent state space. It splits the latent state into two parts, a deterministic part, acting as a memory, which authors argue is essential for the agent to remember facts reliably over time, and a stochastic part, which is required to express the uncertainty about the environment and is crucial for the agent to learn at all. This is similar to how~\textcite{chaplotLearningExploreUsing2020} constructs a deterministic map of the observations, together with a second channel that encodes the uncertainty about the agent's position in the map.
+Unlike our approach, the RSSM relies on rich, informative observations, whereas we are interested in low-dimensional, aliased observations. Additionally, the dreamer algorithms use RSSM to generate sequences of states that are used to train the actor networks, whereas we want to use the latent states to plan on.
+
+% \subsection{Auxiliary loss for representation learning}
+% Using the map reconstruction task as an auxiliary loss is a form of inductive bias. \textcite{fangSLAMuZeroPlanLearn2024} uses the known maps of the training environments to train the agent for faster exploration in unknown environments. 
+
+\section{MuZeroRec and MuZeroRecMap algorithms}
+We propose two modifications of the MuZero algorithm. The MuZeroRec variant modifies the representation network to inclde the previous latent state as an additional input, making it recurrent. The MuZeroRecMap adds a decoder network that reconstructs a map of the environment with probability distribution over the map tiles. The map reconstruction task is used in auxiliary loss to guide the latent space towards representations that are useful for planning.  
+
 
 \section{Hypothesis}
 The main hypothesis for this work is that that we can improve the performance of the MuZero algorithm in partially observable domains by recurrent representation network, and by guiding the construction of the latent space with a prior knowledge of how the environment abstraction looks like.
 
 We have three main hypothesis:
 \begin{itemize}
-    \item \textbf{H1: Recurrent Representation} Making the representation network recurrent will allow the agent to keep track of the information collected in previous timesteps, allowing the MuZero agent to operate in partially observable domains. This is required for the agent to be able to compress observations into beliefs about the environment, which is essential for effective planning in partially observable domains.
-    \item \textbf{H2: Map Abstraction} The "map reconstruction" task will guide the latent space towards representations that are useful for planning, improving sample efficiency.
+    \item \textbf{H1: Recurrent Representation - MuZeroRec} Making the representation network recurrent will allow the agent to keep track of the information collected in previous timesteps, allowing the MuZero agent to operate in partially observable domains. This is required for the agent to be able to compress observations into beliefs about the environment, which is essential for effective planning in partially observable domains.
+    \item \textbf{H2: Map Abstraction - MuZeroRecMap} The "map reconstruction" task will guide the latent space towards representations that are useful for planning, improving sample efficiency.
     \item \textbf{H3: Bias} The combination of recurrent representation network and map reconstruction task leads to faster convergence and superior performance in in partially observable environments. However, assuming that the map is not an optimal abstraction, the map reconstruction loss biases the latent space. 
 \end{itemize}
 
@@ -101,11 +143,7 @@ To make exploaration of the map useful, wthe goal cell is not a terminal state, 
 
 In training, the agent will be trained on a set of randomly generated mazes, with previously unseen mazes used for evaluation.
 
-\section{MuZeroRec and MuZeroRecMap algorithms}
-
-
-
-
+\section{Implementation and dead ends}
 
 
 \section{Results}
