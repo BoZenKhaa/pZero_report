@@ -1,4 +1,4 @@
-# From https://github.com/marketplace/actions/github-action-for-latex
+# Latex: https://github.com/marketplace/actions/github-action-for-latex, GH release: https://github.com/softprops/action-gh-release
 name: Build pdf in GitHub and upload to release
 on: [push]
 jobs:
@@ -15,5 +15,5 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: *.pdf
+          files: ./*.pdf
           tag_name: report.pdf
