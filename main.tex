@@ -4,13 +4,13 @@
 \usepackage{csquotes}
 \usepackage{microtype}
 \usepackage[english]{babel}
+\usepackage{amsmath}
 
 \usepackage[style=ieee, maxbibnames=5, backend=biber, url=false]{biblatex}
 \addbibresource{MyLibrary.bib}
 \usepackage{hyperref} % for hyperlinks
 \usepackage[capitalise, noabbrev]{cleveref} % for \cref, MUST be loaded AFTER hyperref
 
-% \usepackage{tabularx} % for tables with automatic width
 \usepackage{booktabs} % midrule etc.
 \usepackage{adjustbox} % for adjusting table width
 
@@ -103,8 +103,32 @@ Unlike our approach, the RSSM relies on rich, informative observations, whereas 
 % Using the map reconstruction task as an auxiliary loss is a form of inductive bias. \textcite{fangSLAMuZeroPlanLearn2024} uses the known maps of the training environments to train the agent for faster exploration in unknown environments. 
 
 \section{MuZeroRec and MuZeroRecMap algorithms}
-We propose two modifications of the MuZero algorithm. The MuZeroRec variant modifies the representation network to inclde the previous latent state as an additional input, making it recurrent. The MuZeroRecMap adds a decoder network that reconstructs a map of the environment with probability distribution over the map tiles. The map reconstruction task is used in auxiliary loss to guide the latent space towards representations that are useful for planning.  
+We propose two modifications of the MuZero algorithm.
+The following descriptions use the notation from the original MuZero paper~\cite{schrittwieserMasteringAtariGo2020}.
 
+\subsection{MuZeroRec: Recurrent Representation}
+
+The first variant, MuZeroRec, modifies the standard MuZero to handle partial observability by introducing recurrence into the representation process.
+In the original MuZero, the representation network $h$ maps the current observation $o_t$ to a latent state $s_t$, i.e., $s_t = h(o_t)$.
+This is memoryless and insufficient for POMDPs where the history of observations is required to reason about the belief.
+
+In MuZeroRec, we modify the representation network to be recurrent.
+The new network, $h_{\text{rec}}$, takes as input both the current observation $o_t$ and the latent state from the previous timestep, $s_{t-1}$.
+The new latent state is then computed as:
+$$s_t = h_{\text{rec}}(o_t, s_{t-1})$$
+This allows the model to integrate information over time, enabling the latent state $s_t$ to represent a beliefs. In the initial experiments, we use MLP as the representation network, but RSSM may be useful here. 
+The dynamics and prediction networks remain unchanged, operating on this more informed latent state.
+
+The new structure of the representation network means that the MuZeroRec algorithm must be trained on full episodes, rather than on individual transitions. 
+
+\subsection{MuZeroRecMap: Guiding Representation with Map Reconstruction}
+
+The MuZeroRecMap algorithm builds upon MuZeroRec by introducing an auxiliary task to bias latent space. In addition to the recurrent representation network, we add a new component: a \textbf{decoder network}, denoted by $d$.
+
+The function of the decoder is to reconstruct a 2D, 2-channel map of the environment from any given latent state $s_t$.. The first channel is the map,  $\hat{m}_t$, and the second channel is the estimate of agents position, $\hat{l}_t$. Specifically, the output of the decoder $\hat{m}_t, \hat{l}_t = d(s_t)$ is a grid where each cell contains possible tile types (e.g., empty, wall, goal) in the first channel, and the probability distribution over the tiles in the second channel, which signifies the agents belief about the agent's current position in the map. The belief about the agent's orientation can be encoded into the map as well, or provided as an additional output from the decoder. 
+
+To train this decoder, we add an auxiliary loss term to MuZero's main training objective. This map reconstruction loss, $\mathcal{L}_{\text{map}}$, measures the difference between the reconstructed map $\hat{m}_t$ and the ground-truth map $m_{\text{true}}$, and $\mathcal{L}_{\text{pose}}$ measure difference between estimated location and actual, known location if moving from a known position, or a distribution over possible states after teleportation. 
+The total loss for the agent is a weighted sum of the original MuZero losses (for policy, value, etc.) and this new map reconstruction loss. The map loss should provide a strong inductive bias that will force the latent space to focus on spatial information, which we hypothesize will accelerate learning and improve planning.
 
 \section{Hypothesis}
 The main hypothesis for this work is that that we can improve the performance of the MuZero algorithm in partially observable domains by recurrent representation network, and by guiding the construction of the latent space with a prior knowledge of how the environment abstraction looks like.
