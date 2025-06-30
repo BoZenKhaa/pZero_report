@@ -176,9 +176,7 @@ This seemed feasible at the first sight, SLAMuZero was presented at a conference
 
 Instead, I have decided to replace the Habitat environment with the minigrid\footnote{\url{https://minigrid.farama.org/}} environment, which is a standard RL environment for gridworld mazes in OpenAI Gym. As such, my plan was to reimplement SLAMuZero code with latest version of the DeepMind acme library, as SLAMuZero implementation was based on a fork of the outdated variant of the acme library. However, it turned out that while there is activity in the acme library repository, it is from github bots, and the library is not maintained and seemingly impossible to install with unsolvable dependencies\footnote{\url{https://github.com/google-deepmind/acme/issues/321}} that I also ran into.
 
-At that point, 
-
-After a survey 
+At that point, I revisited the survey of implementations of AlphaZero derivatives, and found that LightZero package\footnote{\url{https://github.com/opendilab/LightZero}} is actively maintained, well documented and implements MuZero, along with other variants, and includes examples of how to use MuZero with the minigrid environment. Description of how to install and setup LightZero with custom minigrid environments are in the pZero package\footnote{\url{https://github.com/aicenter/pZero}} README.md file.
 
 \section{Results}
 

@@ -1,4 +1,4 @@
-name: Build pdf
+name: Build pdf in GitHub and upload to release
 on: [push]
 jobs:
   build:
