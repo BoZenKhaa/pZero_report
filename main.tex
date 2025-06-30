@@ -203,13 +203,15 @@ Instead, I have decided to replace the Habitat environment with the minigrid\foo
 At that point, I revisited the survey of implementations of AlphaZero derivatives, and found that LightZero package\footnote{\url{https://github.com/opendilab/LightZero}} is actively maintained, well documented and implements MuZero, along with other variants, and includes examples of how to use MuZero with the minigrid environment. Description of how to install and setup LightZero with custom minigrid environments are in the pZero package\footnote{\url{https://github.com/aicenter/pZero}} README.md file.
 
 \section{Results}
-I obtained useful results only for the MuZero algorithm, as the MuZeroRec did not seem to learn in my attempts at recurrent representation network. Figure~\ref{fig:MuZero_learning} shows the average evaluation reward of the vanilla MuZero algorithm. 
-
-\begin{figure}[h!]
+\begin{figure}
   \centering
   \includegraphics[width=0.4\textwidth]{MuZero_learning.png}
   \caption{Avarage evaluation reward of the vanilla MuZero algorithm during training in mazes of different sizes. While in 5x5 maze the agent qickly converges to a good policy, in 8x8 maze, the agent fails to learn any useful policy.}
   \label{fig:MuZero_learning}
 \end{figure}
+I obtained useful results only for the MuZero algorithm, as the MuZeroRec did not seem to learn in my attempts at recurrent representation network. Figure~\ref{fig:MuZero_learning} shows the average evaluation reward of the vanilla MuZero algorithm. The domain used was a simple wall environment, where single wall is randomly placed in the maze, with single randomly placed opening.
+In 8x8 maze, with 3x3 agent's viewport, number of aliased observations is too hight, and the agent fails to learn.
+MuZeroRec should provide an improvement over the MuZero algorithm in this larger maze. 
+
 
 \end{document}
