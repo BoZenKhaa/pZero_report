@@ -1,0 +1,21 @@
+name: Build pdf
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Git repository
+        uses: actions/checkout@v3
+      - name: Compile latex presentations
+        uses: xu-cheng/latex-action@v2
+        with:
+          root_file: |
+            main.tex
+          latexmk_shell_escape: true
+      - name: Upload generated pdfs to a release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete report.pdf
+          gh release create report.pdf ./*.pdf
