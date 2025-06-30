@@ -1,6 +1,7 @@
 \documentclass[12pt]{article}
-
 \usepackage[utf8]{inputenc}
+
+\usepackage{csquotes}
 \usepackage{microtype}
 \usepackage[english]{babel}
 
@@ -8,6 +9,10 @@
 \addbibresource{MyLibrary.bib}
 \usepackage{hyperref} % for hyperlinks
 \usepackage[capitalise, noabbrev]{cleveref} % for \cref, MUST be loaded AFTER hyperref
+
+% \usepackage{tabularx} % for tables with automatic width
+\usepackage{booktabs} % midrule etc.
+\usepackage{adjustbox} % for adjusting table width
 
 % title and author and date
 \title{MuZero for POMDPs by Recurrent Representation and Biasing Latent Space with Map Reconstruction}
@@ -77,7 +82,7 @@ In training, the agent uses recorded episodes to update all three networks toget
 
 MuZero algorithm has been extended and improved in many different ways. 
 For example, the Stochastic MuZero~\cite{antonoglouPlanningStochasticEnvironments2021} adds capability to model stochastic transitions, and demonstrates improved performance over the original MuZero algorithm. 
-Other improvements include EfficientZero\cite{yeMasteringAtariGames2021}, that among other improvements introduces consistency loss between the latent states from the representation network and latent states projected to the future with the dynamics network, which makes the method converge faster. LightZero framework~\cite{niuLightZeroUnifiedBenchmark2023} unifies multiple of these improvements and algorithms into a single package. 
+Other improvements include EfficientZero~\cite{yeMasteringAtariGames2021}, that among other improvements introduces consistency loss between the latent states from the representation network and latent states projected to the future with the dynamics network, which makes the method converge faster. LightZero framework~\cite{niuLightZeroUnifiedBenchmark2023} unifies multiple of these improvements and algorithms into a single package. 
 However, these works focus squarely on fully observable domains, or domains that can be reasonably modelled as such. 
 
 \subsection{Recurrent models and partial observability}
@@ -139,12 +144,41 @@ What we need is following:
 
 These requirements lead us to the folowing design of the training and evaluation environments. The maze contains wall cells, empty cells, single goal cell and an agent. The agent starts in predetermined position in randomly selected maze, with single goal tile positionws in the maze. Reaching the goal tile gives the agent positive reward, every step incurs a small negative reward. To force partial observability, the viewport of the agent is limited to a small area in front of the agent, 3x3 tiles, with the agent centered on one side of the viewport. This means that observations in different states will be aliased. 
 
-To make exploaration of the map useful, wthe goal cell is not a terminal state, instead, we terminate episodes after predetermined number of steps, and we teleport the agent to a random position in the maze after reaching the goal tile. This also introduces stochastic transitions to the model, and the agent needs to deal with the uncertainty of its position in the maze after each teleportation. It can use its aliased observations to orient itself in the maze, and then use the map to plan its route to the goal tile. To reinforce the map use even more strongly, we have a deterministic movement and observatioon model with no stochasticity. 
-
-In training, the agent will be trained on a set of randomly generated mazes, with previously unseen mazes used for evaluation.
+To make exploaration of the map useful, wthe goal cell is not a terminal state, instead, we terminate episodes after predetermined number of steps, and we teleport the agent to a random position in the maze after reaching the goal tile. This also introduces stochastic transitions to the model, and the agent needs to deal with the uncertainty of its position in the maze after each teleportation. It can use its aliased observations to orient itself in the maze, and then use the map to plan its route to the goal tile. To reinforce the map use even more strongly, we have a deterministic movement and observatioon model with no stochasticity. In training, the agent will be trained on a set of randomly generated mazes, with previously unseen mazes used for evaluation.
 
 \section{Implementation and dead ends}
 
+\begin{table}
+    \centering
+    \begin{adjustbox}{width=\textwidth}
+    \begin{tabular}{lllrrlp{6cm}l}
+        \toprule
+        Package & Language &           Author &  Contr. &  Stars & Last Update &                                                                                                                                                                                                                                                                                    Description &  Libraries \\
+        \midrule
+        \href{https://github.com/opendilab/LightZero}{LightZero} &   Python &        opendilab &            23 &   1300 &      2/2025 &                                                                                                                                                                                                                 Implementation of multiple MuZero algorithms in PyTorch. Also includes UniZero &    Pytorch \\
+        \href{https://github.com/werner-duvaud/muzero-general}{muzero-general} &   Python &    werner-duvaud &            16 &   2600 &        2022 &                                                                                                                                                                                                                                                                 Open reimplementaion of MuZero &    Pytorch \\
+        \href{https://github.com/google-deepmind/mctx}{mctx} &   Python &  google-deepmind &            10 &   2400 &     12/2024 &                                                                                                                                                                                                                                                       DeepMind implementation of MuZero in Jax &        Jax \\
+        \href{https://github.com/kaesve/muzero}{muzero} &   Python &           kaesve &             3 &    156 &        2021 & from \href{https://arxiv.org/abs/2102.12924}{arxiv}, implementation extends AlphaZero to work with singleplayer domains, like its successor MuZero, and compares the two. & Tensorflow \\
+        \href{https://github.com/YeWR/EfficientZero}{EfficientZero} &   Python &             YeWR &             2 &    883 &        2022 &                                                                                                                                                                                                                                                          From “Efficient Zero” Neurips paper &    Pytorch \\
+        \href{https://github.com/johan-gras/MuZero}{MuZero} &   Python &       johan-gras &             1 &    207 &        2019 &                                                                                                                                                                                                                                                                                             &         \\
+        \href{https://github.com/chiamp/sigmazero}{sigmazero} &   Python &           chiamp &             1 &      5 &      4/2024 &                                                                                                                                                                                                                              Seems to be and independent implementation of stochastic MuZero & Tensorflow \\
+        \href{https://github.com/jonathan-laurent/AlphaZero.jl}{AlphaZero.jl} &    Julia & jonathan-laurent &            10 &   1300 &     12/2024 &                                                                                                                                                                                                                                                              AlphaZero implementation in Julia &         \\
+        \href{https://github.com/deveshjawla/MuZero.jl}{MuZero.jl} &    Julia &      deveshjawla &             2 &      8 &        2021 &                                                                                                                                                                                                                                                                                MuZero in Julia &         \\
+        \bottomrule
+    \end{tabular}
+    \end{adjustbox}
+    \caption{Overview of X-Zero implementations in Python and Julia.}
+\end{table}
+    
+Based on my survey of RL libraries in Python and Julia, where I structured libraries by their relevance, latest github activity, number of stars and contributors, I have first explored the option of replicating experiments from the SLAMuZero paper~\cite{fangSLAMuZeroPlanLearn2024}. 
+
+This seemed feasible at the first sight, SLAMuZero was presented at a conference recently and had code available on GitHub\footnote{\url{https://github.com/bwfbowen/SLAMuZero}}, and its main RL dependency was on a older fork of a DeepMind acme\footnote{\url{https://github.com/google-deepmind/acme}} library, which appeared to be actively maintained. Even though the SLAMuZero package itself has multiple complex dependencies, and the setup is not well documented, the dependencies appeared actively maintained. After many attempts and alot of guesswork I managed to install the package, together with all its dependencies and datasets. However, I was not able to get the code running, I assumed it was because of incorrectly set-up FacebookResearch Habitat environment\footnote{\url{https://github.com/facebookresearch/habitat-lab}} that was not compatible with SLAMuZero. I decided that trying to setup Habitat correctly was not worth the effort, as I did not plan on using the Habitat environment for my experiments.
+
+Instead, I have decided to replace the Habitat environment with the minigrid\footnote{\url{https://minigrid.farama.org/}} environment, which is a standard RL environment for gridworld mazes in OpenAI Gym. As such, my plan was to reimplement SLAMuZero code with latest version of the DeepMind acme library, as SLAMuZero implementation was based on a fork of the outdated variant of the acme library. However, it turned out that while there is activity in the acme library repository, it is from github bots, and the library is not maintained and seemingly impossible to install with unsolvable dependencies\footnote{\url{https://github.com/google-deepmind/acme/issues/321}} that I also ran into.
+
+At that point, 
+
+After a survey 
 
 \section{Results}
 
